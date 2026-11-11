@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ResolveDesk AI — Enterprise Agentic CX & Multi-Tenant Operations Workspace</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+    code, .font-mono { font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-900 antialiased">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useMemo, useEffect } = React;
+
+    const INITIAL_ORGS = [
+      {
+        id: "org_retail",
+        name: "Moda Ibérica Retail",
+        slug: "moda-iberica",
+        industry: "Enterprise Retail & E-Commerce",
+        plan: "enterprise",
+        seats_limit: 150,
+        ai_resolutions_used: 42,
+        ai_resolutions_limit: 500,
+        mrr_eur: 4800,
+      },
+      {
+        id: "org_fintech",
+        name: "PayFlow Digital",
+        slug: "payflow-digital",
+        industry: "FinTech & Pagos B2B",
+        plan: "starter",
+        seats_limit: 5,
+        ai_resolutions_used: 8,
+        ai_resolutions_limit: 10,
+        mrr_eur: 190,
+      }
+    ];
+
+    const INITIAL_USERS = [
+      { id: "usr_1", organization_id: "org_retail", name: "Laura Gómez (VP CX)", email: "lgomez@modaiberica.es", role: "admin" },
+      { id: "usr_2", organization_id: "org_retail", name: "Carlos Ruiz (Agente N1)", email: "cruiz@modaiberica.es", role: "agent" },
+      { id: "usr_3", organization_id: "org_fintech", name: "Marta Sanz (Head of Ops)", email: "msanz@payflow.io", role: "admin" },
+      { id: "usr_4", organization_id: "org_fintech", name: "Diego Martín (Soporte)", email: "dmartin@payflow.io", role: "agent" },
+    ];
+
+    const minutesAgo = (m) => new Date(Date.now() - m * 60000).toISOString();
+
+    const INITIAL_TICKETS = [
+      {
+        id: "tkt_r1",
+        organization_id: "org_retail",
+        ticket_number: "#ZD-1041",
+        channel: "whatsapp",
+        requester_name: "Elena Navarro",
+        requester_email: "elena.navarro@gmail.com",
+        subject: "Cobro duplicado en pedido online #ES-99812 y nadie me responde",
+        description: "Hola, hice una compra ayer de un abrigo por 189€ y me habéis cargado el importe dos veces en mi tarjeta terminada en 4532. Mi DNI es 48291044L y mi teléfono 644918273. Necesito el abono urgente hoy mismo o pondré reclamación en Consumo.",
+        status: "new",
+        priority: "urgent",
+        intent: null,
+        sentiment: null,
+        pii_redacted_text: null,
+        ai_suggested_reply: null,
+        agent_reply: null,
+        created_at: minutesAgo(14),
+        updated_at: minutesAgo(14),
+      },
+      {
+        id: "tkt_r2",
+        organization_id: "org_retail",
+        ticket_number: "#ZD-1040",
+        channel: "email",
+        requester_name: "Javier Ortega",
+        requester_email: "j.ortega@empresa.es",
+        subject: "Cambio de talla en regalo corporativo (30 unidades)",
+        description: "Buenos días equipo, recibimos el lote para nuestro evento en Madrid pero 8 chaquetas talla M vienen pequeñas. ¿Podemos gestionar recogida en Paseo de la Castellana 120 antes del viernes? Contacto directo: 611223344.",
+        status: "open",
+        priority: "high",
+        intent: null,
+        sentiment: null,
+        pii_redacted_text: null,
+        ai_suggested_reply: null,
+        agent_reply: null,
+        created_at: minutesAgo(68),
+        updated_at: minutesAgo(45),
+      },
+      {
+        id: "tkt_r3",
+        organization_id: "org_retail",
+        ticket_number: "#ZD-1039",
+        channel: "web",
+        requester_name: "Sofía Morales",
+        requester_email: "sofia.m@hotmail.com",
+        subject: "Duda sobre plazo de devolución en tienda física",
+        description: "Hola! Compré unos zapatos online la semana pasada. ¿Tengo 30 días para devolverlos gratis en cualquier tienda física llevando solo el código QR de la app?",
+        status: "pending",
+        priority: "low",
+        intent: "Consulta Política Devolución (Omnicanal)",
+        sentiment: "Neutral / Positivo",
+        pii_redacted_text: "Hola! Compré unos zapatos online la semana pasada. ¿Tengo 30 días para devolverlos gratis en cualquier tienda física llevando solo el código QR de la app?",
+        ai_suggested_reply: "Hola Sofía, ¡exacto! Tienes 30 días naturales desde la fecha de entrega mostrando el código QR de la app en cualquier tienda física sin coste.",
+        agent_reply: "Hola Sofía, ¡exacto! Tienes 30 días naturales desde la entrega mostrando el QR en caja. ¿Necesitas localizar tu tienda más cercana?",
+        created_at: minutesAgo(240),
+        updated_at: minutesAgo(180),
+      },
+      {
+        id: "tkt_r4",
+        organization_id: "org_retail",
+        ticket_number: "#ZD-1038",
+        channel: "api",
+        requester_name: "ERP Logística (Webhook)",
+        requester_email: "alerts@logistics-partner.com",
+        subject: "Retraso transportista ruta Zona Centro - 14 envíos Express",
+        description: "Alerta automática de transportista: incidencia meteorológica afecta a 14 pedidos con SLA 24h en Madrid Centro. Requiere notificación proactiva a clientes VIP.",
+        status: "solved",
+        priority: "normal",
+        intent: "Excepción Logística SLA 24h",
+        sentiment: "Informativo (Webhook B2B)",
+        pii_redacted_text: "Alerta automática de transportista: incidencia meteorológica afecta a 14 pedidos con SLA 24h en Madrid Centro. Requiere notificación proactiva a clientes VIP.",
+        ai_suggested_reply: "Clientes VIP notificados automáticamente con cupón de compensación de gastos de envío.",
+        agent_reply: "Clientes VIP notificados automáticamente con cupón de compensación de gastos de envío.",
+        created_at: minutesAgo(520),
+        updated_at: minutesAgo(400),
+      },
+      {
+        id: "tkt_f1",
+        organization_id: "org_fintech",
+        ticket_number: "#ZD-2009",
+        channel: "api",
+        requester_name: "Clínica Dental Norte SL",
+        requester_email: "admin@clinicadentalnorte.es",
+        subject: "Error 502 en pasarela de cobro TPV Virtual en producción",
+        description: "Urgente: nuestros pacientes no pueden pagar reservas desde las 16:30. El webhook devuelve HTTP 502. Nuestro comercio tiene NIF B87654321 y cuenta de liquidación ES91 2100 0418 4502 0005 1332. Estamos perdiendo citas cada minuto.",
+        status: "new",
+        priority: "urgent",
+        intent: null,
+        sentiment: null,
+        pii_redacted_text: null,
+        ai_suggested_reply: null,
+        agent_reply: null,
+        created_at: minutesAgo(8),
+        updated_at: minutesAgo(8),
+      },
+      {
+        id: "tkt_f2",
+        organization_id: "org_fintech",
+        ticket_number: "#ZD-2008",
+        channel: "email",
+        requester_name: "Roberto Méndez",
+        requester_email: "rmendez@talleresmendez.com",
+        subject: "Solicitud de factura mensual de comisiones de octubre",
+        description: "Hola, mi gestoría me pide el desglose de comisiones bancarias del mes pasado para cerrar el trimestre. ¿Desde qué menú del panel puedo descargarlo en PDF?",
+        status: "open",
+        priority: "normal",
+        intent: null,
+        sentiment: null,
+        pii_redacted_text: null,
+        ai_suggested_reply: null,
+        agent_reply: null,
+        created_at: minutesAgo(130),
+        updated_at: minutesAgo(120),
+      }
+    ];
+
+    const STATUS_META = {
+      new: { label: "Nuevo", badgeClass: "bg-amber-100 text-amber-900 border-amber-300" },
+      open: { label: "Abierto", badgeClass: "bg-rose-100 text-rose-900 border-rose-300" },
+      pending: { label: "Pendiente", badgeClass: "bg-sky-100 text-sky-900 border-sky-300" },
+      solved: { label: "Resuelto", badgeClass: "bg-emerald-100 text-emerald-900 border-emerald-300" },
+    };
+
+    const PRIORITY_META = {
+      low: { label: "Baja", badgeClass: "bg-slate-100 text-slate-700" },
+      normal: { label: "Normal", badgeClass: "bg-blue-50 text-blue-700" },
+      high: { label: "Alta", badgeClass: "bg-orange-100 text-orange-800" },
+      urgent: { label: "Urgente · SLA 1h", badgeClass: "bg-red-600 text-white" },
+    };
+
+    const CHANNEL_LABEL = {
+      whatsapp: "WhatsApp Business",
+      email: "Email",
+      web: "Web Help Center",
+      api: "Webhook API",
+    };
+
+    function redactPII(text) {
+      let count = 0;
+      const redacted = text
+        .replace(/\b\d{8}[A-HJ-NP-TV-Z]\b/gi, () => { count++; return "[DNI_REDACTED]"; })
+        .replace(/\b[A-HJ-NP-SUVW]\d{7}[0-9A-J]\b/gi, () => { count++; return "[NIF_REDACTED]"; })
+        .replace(/\bES\d{2}(?:\s?\d{4}){5}\b/gi, () => { count++; return "[IBAN_REDACTED]"; })
+        .replace(/\b[6789]\d{8}\b/g, () => { count++; return "[PHONE_REDACTED]"; });
+      return { redacted, count };
+    }
+
+    function runIntelligentTriage(ticket) {
+      const { redacted, count } = redactPII(ticket.description);
+      const lower = (ticket.subject + " " + ticket.description).toLowerCase();
+
+      if (lower.includes("cobro duplicado") || lower.includes("cargado") || lower.includes("abono")) {
+        return {
+          intent: "Facturación / Reembolso por Cargo Duplicado",
+          sentiment: "Crítico · Riesgo de Reclamación (Alta Urgencia)",
+          priority: "urgent",
+          pii_redacted_text: redacted,
+          pii_count: count,
+          ai_suggested_reply: `Hola ${ticket.requester_name.split(" ")[0]}, hemos verificado en nuestra pasarela de pagos tu pedido #ES-99812 y confirmamos que el segundo cargo de 189€ correspondía a una retención temporal que ya hemos anulado manualmente. El abono ya está emitido a tu tarjeta y se reflejará en 24-48h hábiles. Te enviamos el justificante de anulación por email.`
+        };
+      }
+      if (lower.includes("502") || lower.includes("pasarela") || lower.includes("webhook")) {
+        return {
+          intent: "Incidencia Crítica API / TPV Virtual (HTTP 502)",
+          sentiment: "Urgente · Impacto en Producción B2B",
+          priority: "urgent",
+          pii_redacted_text: redacted,
+          pii_count: count,
+          ai_suggested_reply: `Hola equipo de ${ticket.requester_name}, hemos detectado latencia en el nodo primario del webhook TPV y hemos conmutado el tráfico de vuestro comercio al clúster secundario de alta disponibilidad. Las transacciones ya devuelven HTTP 200 OK y la liquidación SEPA sigue programada con normalidad.`
+        };
+      }
+      if (lower.includes("talla") || lower.includes("recogida") || lower.includes("evento")) {
+        return {
+          intent: "Logística B2B / Cambio de Talla Corporativo",
+          sentiment: "Constructivo · Urgencia Temporal (Evento Viernes)",
+          priority: "high",
+          pii_redacted_text: redacted,
+          pii_count: count,
+          ai_suggested_reply: `Buenos días ${ticket.requester_name.split(" ")[0]}, acabamos de programar un envío urgente Express 24h con las 8 chaquetas en talla L hacia Paseo de la Castellana 120 con entrega mañana antes de las 13:00h. El mismo mensajero recogerá las 8 unidades talla M sin coste adicional.`
+        };
+      }
+      return {
+        intent: "Consulta de Soporte & Operaciones",
+        sentiment: "Neutral · Solicitud Operativa",
+        priority: ticket.priority,
+        pii_redacted_text: redacted,
+        pii_count: count,
+        ai_suggested_reply: `Hola ${ticket.requester_name.split(" ")[0]}, gracias por contactar con soporte. Puedes descargar el desglose mensual en PDF directamente desde Panel de Administración → Facturación y Liquidaciones → Exportar Trimestre. Quedamos a tu disposición si necesitas que te lo adjuntemos por esta vía.`
+      };
+    }
+
+    function App() {
+      const [organizations, setOrganizations] = useState(INITIAL_ORGS);
+      const [users] = useState(INITIAL_USERS);
+      const [selectedOrgId, setSelectedOrgId] = useState("org_retail");
+      const [selectedUserId, setSelectedUserId] = useState("usr_1");
+      const [tickets, setTickets] = useState(INITIAL_TICKETS);
+      const [selectedTicketId, setSelectedTicketId] = useState("tkt_r1");
+      const [statusFilter, setStatusFilter] = useState("all");
+      const [replyDraft, setReplyDraft] = useState("");
+      const [showNewModal, setShowNewModal] = useState(false);
+
+      const [newChannel, setNewChannel] = useState("whatsapp");
+      const [newPriority, setNewPriority] = useState("high");
+      const [newRequesterName, setNewRequesterName] = useState("");
+      const [newRequesterEmail, setNewRequesterEmail] = useState("");
+      const [newSubject, setNewSubject] = useState("");
+      const [newDescription, setNewDescription] = useState("");
+
+      const [debugLog, setDebugLog] = useState({
+        endpoint: "GET /api/tickets?orgId=org_retail",
+        sql: "SELECT * FROM tickets WHERE organization_id = 'org_retail' ORDER BY created_at DESC",
+        timestamp: new Date().toLocaleTimeString("es-ES"),
+      });
+
+      const activeOrg = useMemo(
+        () => organizations.find((o) => o.id === selectedOrgId),
+        [organizations, selectedOrgId]
+      );
+
+      const orgUsers = useMemo(
+        () => users.filter((u) => u.organization_id === selectedOrgId),
+        [users, selectedOrgId]
+      );
+
+      const activeUser = useMemo(
+        () => orgUsers.find((u) => u.id === selectedUserId) || orgUsers[0],
+        [orgUsers, selectedUserId]
+      );
+
+      const orgTickets = useMemo(
+        () => tickets.filter((t) => t.organization_id === selectedOrgId),
+        [tickets, selectedOrgId]
+      );
+
+      const filteredTickets = useMemo(() => {
+        if (statusFilter === "all") return orgTickets;
+        return orgTickets.filter((t) => t.status === statusFilter);
+      }, [orgTickets, statusFilter]);
+
+      const selectedTicket = useMemo(
+        () => filteredTickets.find((t) => t.id === selectedTicketId) || filteredTickets[0] || null,
+        [filteredTickets, selectedTicketId]
+      );
+
+      useEffect(() => {
+        setReplyDraft(selectedTicket?.agent_reply || "");
+      }, [selectedTicket?.id]);
+
+      const counts = useMemo(() => ({
+        all: orgTickets.length,
+        new: orgTickets.filter((t) => t.status === "new").length,
+        open: orgTickets.filter((t) => t.status === "open").length,
+        pending: orgTickets.filter((t) => t.status === "pending").length,
+        solved: orgTickets.filter((t) => t.status === "solved").length,
+      }), [orgTickets]);
+
+      function handleSwitchOrg(orgId) {
+        setSelectedOrgId(orgId);
+        const firstUser = users.find((u) => u.organization_id === orgId);
+        if (firstUser) setSelectedUserId(firstUser.id);
+        const firstTkt = tickets.find((t) => t.organization_id === orgId);
+        if (firstTkt) setSelectedTicketId(firstTkt.id);
+        setStatusFilter("all");
+        setDebugLog({
+          endpoint: `GET /api/tickets?orgId=${orgId}`,
+          sql: `SELECT * FROM tickets WHERE organization_id = '${orgId}' ORDER BY created_at DESC`,
+          timestamp: new Date().toLocaleTimeString("es-ES"),
+        });
+      }
+
+      function handlePatchTicket(updates, customSqlNote) {
+        if (!selectedTicket) return;
+        setTickets((prev) =>
+          prev.map((t) =>
+            t.id === selectedTicket.id
+              ? { ...t, ...updates, updated_at: new Date().toISOString() }
+              : t
+          )
+        );
+        const setClauses = Object.keys(updates).map((k) => `${k} = ?`).join(", ");
+        setDebugLog({
+          endpoint: `PATCH /api/tickets/${selectedTicket.id}`,
+          sql: customSqlNote || `UPDATE tickets SET ${setClauses}, updated_at = CURRENT_TIMESTAMP WHERE id = '${selectedTicket.id}' AND organization_id = '${selectedOrgId}'`,
+          timestamp: new Date().toLocaleTimeString("es-ES"),
+        });
+      }
+
+      function handleRunAITriage() {
+        if (!selectedTicket) return;
+        const result = runIntelligentTriage(selectedTicket);
+        handlePatchTicket(
+          {
+            intent: result.intent,
+            sentiment: result.sentiment,
+            priority: result.priority,
+            pii_redacted_text: result.pii_redacted_text,
+            ai_suggested_reply: result.ai_suggested_reply,
+          },
+          `UPDATE tickets SET intent = '${result.intent}', pii_redacted_text = '[GDPR_MASKED]', priority = '${result.priority}' WHERE id = '${selectedTicket.id}' AND organization_id = '${selectedOrgId}'`
+        );
+      }
+
+      function handleInsertCopilotReply() {
+        if (!selectedTicket?.ai_suggested_reply) return;
+        setReplyDraft(selectedTicket.ai_suggested_reply);
+        setOrganizations((prev) =>
+          prev.map((o) =>
+            o.id === selectedOrgId
+              ? { ...o, ai_resolutions_used: Math.min(o.ai_resolutions_limit, o.ai_resolutions_used + 1) }
+              : o
+          )
+        );
+        setDebugLog({
+          endpoint: `POST /api/tickets/${selectedTicket.id}/ai-copilot-apply`,
+          sql: `UPDATE organizations SET ai_resolutions_used = ai_resolutions_used + 1 WHERE id = '${selectedOrgId}'`,
+          timestamp: new Date().toLocaleTimeString("es-ES"),
+        });
+      }
+
+      function handleCreateTicket(e) {
+        e.preventDefault();
+        const nextNum = `#ZD-${Math.floor(3000 + Math.random() * 900)}`;
+        const newTkt = {
+          id: `tkt_${Date.now()}`,
+          organization_id: selectedOrgId,
+          ticket_number: nextNum,
+          channel: newChannel,
+          requester_name: newRequesterName,
+          requester_email: newRequesterEmail,
+          subject: newSubject,
+          description: newDescription,
+          status: "new",
+          priority: newPriority,
+          intent: null,
+          sentiment: null,
+          pii_redacted_text: null,
+          ai_suggested_reply: null,
+          agent_reply: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        setTickets((prev) => [newTkt, ...prev]);
+        setSelectedTicketId(newTkt.id);
+        setShowNewModal(false);
+        setNewRequesterName("");
+        setNewRequesterEmail("");
+        setNewSubject("");
+        setNewDescription("");
+        setDebugLog({
+          endpoint: "POST /api/tickets",
+          sql: `INSERT INTO tickets (id, organization_id, ticket_number, channel, status, priority) VALUES ('${newTkt.id}', '${selectedOrgId}', '${nextNum}', '${newChannel}', 'new', '${newPriority}')`,
+          timestamp: new Date().toLocaleTimeString("es-ES"),
+        });
+      }
+
+      return (
+        <div className="min-h-screen flex flex-col bg-slate-100 text-slate-900">
+          {/* CABECERA MULTI-TENANT + TELEMETRÍA CLOUD */}
+          <header className="bg-[#03363D] text-white px-6 py-3 shadow-md flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-emerald-400 text-[#03363D] font-black flex items-center justify-center text-lg shadow-xs">
+                RD
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold tracking-tight text-base">
+                    ResolveDesk AI
+                  </span>
+                  <span className="text-[11px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-teal-800 text-emerald-300 font-semibold border border-teal-600">
+                    Multi-Tenant SaaS · Live Interactive Demo
+                  </span>
+                </div>
+                <p className="text-xs text-teal-200">
+                  Simulador de Arquitectura Enterprise CX (Aislamiento por <code className="text-emerald-300">organization_id</code> + Guardrails GDPR + Agent Copilot)
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4 text-xs">
+              <div className="bg-[#02262b] border border-teal-800 rounded-lg px-3 py-1.5 flex items-center gap-2">
+                <span className="text-teal-300 font-medium">Tenant (Cliente):</span>
+                <select
+                  value={selectedOrgId}
+                  onChange={(e) => handleSwitchOrg(e.target.value)}
+                  className="bg-transparent text-white font-semibold focus:outline-none cursor-pointer"
+                >
+                  {organizations.map((org) => (
+                    <option key={org.id} value={org.id} className="text-slate-900">
+                      {org.name} ({org.plan.toUpperCase()} - €{org.mrr_eur}/mes)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="bg-[#02262b] border border-teal-800 rounded-lg px-3 py-1.5 flex items-center gap-2">
+                <span className="text-teal-300 font-medium">Sesión RBAC:</span>
+                <select
+                  value={activeUser?.id || ""}
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                  className="bg-transparent text-white font-semibold focus:outline-none cursor-pointer"
+                >
+                  {orgUsers.map((u) => (
+                    <option key={u.id} value={u.id} className="text-slate-900">
+                      {u.name} [{u.role.toUpperCase()}]
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {activeOrg && (
+                <div className="bg-[#02262b] border border-teal-800 rounded-lg px-3 py-1.5 flex items-center gap-3">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wider text-teal-300">
+                      Automated Resolutions (IA)
+                    </div>
+                    <div className="font-mono font-bold text-emerald-300">
+                      {activeOrg.ai_resolutions_used} / {activeOrg.ai_resolutions_limit} incluidas
+                    </div>
+                  </div>
+                  <div className="w-20 h-2 bg-teal-950 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-400 transition-all"
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          Math.round((activeOrg.ai_resolutions_used / activeOrg.ai_resolutions_limit) * 100)
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </header>
+
+          {/* CUERPO CENTRAL: 3 COLUMNAS */}
+          <div className="flex flex-1 min-h-0 overflow-hidden">
+            {/* COLUMNA 1: VISTAS DE TICKETS */}
+            <aside className="w-60 bg-white border-r border-slate-200 flex flex-col justify-between p-4 shrink-0">
+              <div>
+                <button
+                  onClick={() => setShowNewModal(true)}
+                  className="w-full py-2.5 px-3 rounded-lg bg-[#03363D] hover:bg-[#054a54] text-white font-semibold text-sm shadow-xs transition cursor-pointer flex items-center justify-center gap-2 mb-5"
+                >
+                  <span>+ Simular Nuevo Ticket</span>
+                </button>
+
+                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 px-2">
+                  Vistas de Cola ({activeOrg?.slug})
+                </div>
+
+                <nav className="space-y-1 text-sm">
+                  {[
+                    { key: "all", label: "Todos los tickets", count: counts.all },
+                    { key: "new", label: "Nuevos (Sin triaje)", count: counts.new },
+                    { key: "open", label: "Abiertos", count: counts.open },
+                    { key: "pending", label: "Pendientes cliente", count: counts.pending },
+                    { key: "solved", label: "Resueltos", count: counts.solved },
+                  ].map((view) => {
+                    const active = statusFilter === view.key;
+                    return (
+                      <button
+                        key={view.key}
+                        onClick={() => setStatusFilter(view.key)}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition cursor-pointer ${
+                          active
+                            ? "bg-teal-50 text-[#03363D] font-semibold border border-teal-200"
+                            : "text-slate-600 hover:bg-slate-100"
+                        }`}
+                      >
+                        <span>{view.label}</span>
+                        <span
+                          className={`text-xs font-mono px-2 py-0.5 rounded-full ${
+                            active ? "bg-[#03363D] text-white" : "bg-slate-100 text-slate-600"
+                          }`}
+                        >
+                          {view.count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </nav>
+              </div>
+
+              {activeOrg && (
+                <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs space-y-1.5">
+                  <div className="font-bold text-slate-700 flex items-center justify-between">
+                    <span>Datos del Contrato</span>
+                    <span
+                      className={`uppercase px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                        activeOrg.plan === "enterprise"
+                          ? "bg-purple-100 text-purple-800"
+                          : "bg-amber-100 text-amber-800"
+                      }`}
+                    >
+                      {activeOrg.plan}
+                    </span>
+                  </div>
+                  <div className="text-slate-500">{activeOrg.industry}</div>
+                  <div className="flex justify-between pt-1 border-t border-slate-200 text-slate-600">
+                    <span>Licencias Agente:</span>
+                    <span className="font-semibold">{activeOrg.seats_limit} seats</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Facturación MRR:</span>
+                    <span className="font-semibold">€{activeOrg.mrr_eur}/mes</span>
+                  </div>
+                </div>
+              )}
+            </aside>
+
+            {/* COLUMNA 2: LISTA DE TICKETS EN COLA */}
+            <section className="w-96 bg-white border-r border-slate-200 flex flex-col min-h-0 shrink-0">
+              <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50/60">
+                <h2 className="font-bold text-sm text-slate-800">
+                  Cola de Soporte ({filteredTickets.length})
+                </h2>
+                <span className="text-[11px] font-mono text-slate-400">
+                  tenant_id={selectedOrgId}
+                </span>
+              </div>
+
+              <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
+                {filteredTickets.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-slate-400">
+                    No hay tickets en esta vista para {activeOrg?.name}.
+                  </div>
+                ) : (
+                  filteredTickets.map((ticket) => {
+                    const isSelected = ticket.id === selectedTicket?.id;
+                    const statusInfo = STATUS_META[ticket.status];
+                    const priorityInfo = PRIORITY_META[ticket.priority];
+
+                    return (
+                      <button
+                        key={ticket.id}
+                        onClick={() => setSelectedTicketId(ticket.id)}
+                        className={`w-full text-left p-4 transition cursor-pointer block ${
+                          isSelected
+                            ? "bg-teal-50/60 border-l-4 border-l-[#03363D]"
+                            : "hover:bg-slate-50 border-l-4 border-l-transparent"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs font-bold text-slate-500">
+                              {ticket.ticket_number}
+                            </span>
+                            <span className="text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">
+                              {CHANNEL_LABEL[ticket.channel]}
+                            </span>
+                          </div>
+                          <span
+                            className={`text-[11px] px-2 py-0.5 rounded-full border font-semibold ${statusInfo.badgeClass}`}
+                          >
+                            {statusInfo.label}
+                          </span>
+                        </div>
+
+                        <div className="font-semibold text-sm text-slate-900 line-clamp-2 mb-1.5">
+                          {ticket.subject}
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs text-slate-500">
+                          <span className="truncate max-w-[170px]">
+                            {ticket.requester_name}
+                          </span>
+                          <span
+                            className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${priorityInfo.badgeClass}`}
+                          >
+                            {priorityInfo.label}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </section>
+
+            {/* COLUMNA 3: DETALLE DE CONVERSACIÓN + PANEL LATERAL COPILOT */}
+            <main className="flex-1 flex min-w-0 bg-slate-50 overflow-hidden">
+              {selectedTicket ? (
+                <>
+                  <div className="flex-1 flex flex-col min-w-0 overflow-y-auto p-6 space-y-5">
+                    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-2xs">
+                      <div className="flex flex-wrap items-start justify-between gap-4 mb-3">
+                        <div>
+                          <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
+                            <span className="font-mono font-bold text-slate-700">
+                              {selectedTicket.ticket_number}
+                            </span>
+                            <span>•</span>
+                            <span>Canal: {CHANNEL_LABEL[selectedTicket.channel]}</span>
+                            <span>•</span>
+                            <span>
+                              Cliente: <strong>{selectedTicket.requester_name}</strong> ({selectedTicket.requester_email})
+                            </span>
+                          </div>
+                          <h1 className="text-lg font-bold text-slate-900">
+                            {selectedTicket.subject}
+                          </h1>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-xs">
+                          <div>
+                            <label className="block text-[10px] uppercase font-bold text-slate-400 mb-0.5">
+                              Prioridad / SLA
+                            </label>
+                            <select
+                              value={selectedTicket.priority}
+                              onChange={(e) => handlePatchTicket({ priority: e.target.value })}
+                              className="border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-medium text-slate-800 cursor-pointer"
+                            >
+                              <option value="low">Baja</option>
+                              <option value="normal">Normal (SLA 24h)</option>
+                              <option value="high">Alta (SLA 4h)</option>
+                              <option value="urgent">Urgente (SLA 1h)</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] uppercase font-bold text-slate-400 mb-0.5">
+                              Estado del Ticket
+                            </label>
+                            <select
+                              value={selectedTicket.status}
+                              onChange={(e) => handlePatchTicket({ status: e.target.value })}
+                              className="border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-semibold text-slate-800 cursor-pointer"
+                            >
+                              <option value="new">Nuevo</option>
+                              <option value="open">Abierto</option>
+                              <option value="pending">Pendiente</option>
+                              <option value="solved">Resuelto</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Mensaje entrante del cliente */}
+                    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-2xs">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center">
+                            {selectedTicket.requester_name.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold text-slate-900">
+                              {selectedTicket.requester_name}
+                            </div>
+                            <div className="text-[11px] text-slate-400">
+                              Mensaje entrante original (vista interna agente autorizado)
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-xs text-slate-400 font-mono">
+                          {new Date(selectedTicket.created_at).toLocaleString("es-ES")}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap bg-slate-50 p-3.5 rounded-lg border border-slate-100">
+                        {selectedTicket.description}
+                      </p>
+
+                      {selectedTicket.pii_redacted_text && (
+                        <div className="mt-3 p-3 rounded-lg bg-emerald-50/70 border border-emerald-200 text-xs">
+                          <div className="font-bold text-emerald-900 flex items-center justify-between mb-1">
+                            <span>🛡️ Payload Anonimizado (Zero-Data-Retention LLM Guardrail)</span>
+                            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-emerald-200 text-emerald-900">
+                              GDPR OK
+                            </span>
+                          </div>
+                          <p className="font-mono text-emerald-800 leading-relaxed">
+                            {selectedTicket.pii_redacted_text}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Respuesta del Agente */}
+                    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-2xs">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                          Respuesta pública como {activeUser?.name}
+                        </span>
+                        {selectedTicket.agent_reply && (
+                          <span className="text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-medium">
+                            Respuesta guardada en SQL
+                          </span>
+                        )}
+                      </div>
+
+                      <textarea
+                        rows={4}
+                        value={replyDraft}
+                        onChange={(e) => setReplyDraft(e.target.value)}
+                        placeholder="Escribe una respuesta al cliente o usa el Agent Copilot a la derecha..."
+                        className="w-full rounded-lg border border-slate-300 p-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#03363D] mb-3"
+                      />
+
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          disabled={!replyDraft.trim()}
+                          onClick={() =>
+                            handlePatchTicket({
+                              agent_reply: replyDraft,
+                              status: "pending",
+                            })
+                          }
+                          className="px-3.5 py-2 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40 cursor-pointer"
+                        >
+                          Enviar como Pendiente
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!replyDraft.trim()}
+                          onClick={() =>
+                            handlePatchTicket({
+                              agent_reply: replyDraft,
+                              status: "solved",
+                            })
+                          }
+                          className="px-4 py-2 rounded-lg bg-[#03363D] hover:bg-[#054a54] text-white text-xs font-semibold disabled:opacity-40 cursor-pointer"
+                        >
+                          Enviar y marcar Resuelto
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Panel derecho: Intelligent Triage & Copilot */}
+                  <aside className="w-80 bg-white border-l border-slate-200 p-4 overflow-y-auto shrink-0 space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900">
+                          Intelligent Triage & Copilot
+                        </h3>
+                        <p className="text-[11px] text-slate-500">
+                          Motor Agentic CX + Guardrail GDPR
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                        Activo
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={handleRunAITriage}
+                      className="w-full py-2.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      <span>⚡ Analizar Ticket con IA (Triage + GDPR)</span>
+                    </button>
+
+                    <div className="space-y-2.5 text-xs">
+                      <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                        <span className="text-slate-400 block text-[10px] uppercase font-bold mb-0.5">
+                          Intención detectada (Intent)
+                        </span>
+                        <span className="font-semibold text-slate-800">
+                          {selectedTicket.intent ?? "Pulsa «Analizar Ticket con IA»"}
+                        </span>
+                      </div>
+                      <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                        <span className="text-slate-400 block text-[10px] uppercase font-bold mb-0.5">
+                          Sentimiento & Urgencia
+                        </span>
+                        <span className="font-semibold text-slate-800">
+                          {selectedTicket.sentiment ?? "Pendiente de evaluación"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {selectedTicket.ai_suggested_reply ? (
+                      <div className="rounded-xl border border-teal-200 bg-teal-50/50 p-3.5 text-xs space-y-2.5">
+                        <div className="font-bold text-[#03363D] flex items-center justify-between">
+                          <span>✨ Borrador Agent Copilot</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-teal-100 text-teal-900">
+                            98% Confianza
+                          </span>
+                        </div>
+                        <p className="text-slate-700 leading-relaxed">
+                          {selectedTicket.ai_suggested_reply}
+                        </p>
+                        <button
+                          onClick={handleInsertCopilotReply}
+                          className="w-full py-2 px-3 rounded-lg bg-[#03363D] hover:bg-[#054a54] text-white font-semibold text-xs transition cursor-pointer"
+                        >
+                          Insertar en Respuesta (Consume 1 Resolución IA)
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-teal-300 bg-teal-50/40 p-3.5 text-xs space-y-2">
+                        <div className="font-semibold text-[#03363D]">
+                          Flujo Agentic CX en 3 pasos:
+                        </div>
+                        <ul className="space-y-1.5 text-slate-600 list-disc pl-4">
+                          <li>
+                            <strong>Guardrail GDPR / PII:</strong> Enmascara DNI, NIF, IBAN y teléfonos antes de enviar el contexto al LLM.
+                          </li>
+                          <li>
+                            <strong>Intelligent Triage:</strong> Clasifica Intención, Sentimiento y SLA.
+                          </li>
+                          <li>
+                            <strong>Agent Copilot:</strong> Genera borrador listo para enviar en 1 clic.
+                          </li>
+                        </ul>
+                      </div>
+                    )}
+                  </aside>
+                </>
+              ) : (
+                <div className="flex-1 flex items-center justify-center text-sm text-slate-400">
+                  Selecciona un ticket de la cola para abrir el espacio de trabajo.
+                </div>
+              )}
+            </main>
+          </div>
+
+          {/* INSPECTOR DIDÁCTICO EN VIVO */}
+          <footer className="bg-slate-900 text-slate-200 px-5 py-2.5 text-xs font-mono flex flex-wrap items-center justify-between gap-4 border-t border-slate-700 shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-sans font-bold text-[10px] uppercase shrink-0">
+                Inspector Cloud en Vivo ({debugLog.timestamp})
+              </span>
+              <span className="text-sky-300 font-semibold shrink-0">
+                {debugLog.endpoint}
+              </span>
+              <span className="text-slate-500">→</span>
+              <span className="text-amber-200 truncate" title={debugLog.sql}>
+                {debugLog.sql}
+              </span>
+            </div>
+            <span className="text-[11px] text-slate-400 font-sans">
+              Repositorio: <a href="https://github.com/egarcia-enterprise/resolvedesk-ai-" target="_blank" className="text-emerald-300 underline">github.com/egarcia-enterprise/resolvedesk-ai-</a>
+            </span>
+          </footer>
+
+          {/* MODAL PARA SIMULAR ENTRADA DE UN NUEVO TICKET */}
+          {showNewModal && (
+            <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">
+                      Simular Ticket Entrante ({activeOrg?.name})
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Enviará un <code className="font-mono">POST /api/tickets</code> aislado para <code className="font-mono">{selectedOrgId}</code>
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowNewModal(false)}
+                    className="text-slate-400 hover:text-slate-600 text-sm font-bold cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <form onSubmit={handleCreateTicket} className="space-y-3.5 text-sm">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Canal Omnicanal
+                      </label>
+                      <select
+                        value={newChannel}
+                        onChange={(e) => setNewChannel(e.target.value)}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                      >
+                        <option value="web">Web Help Center</option>
+                        <option value="whatsapp">WhatsApp Business</option>
+                        <option value="email">Email Soporte</option>
+                        <option value="api">Webhook API</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Prioridad Inicial
+                      </label>
+                      <select
+                        value={newPriority}
+                        onChange={(e) => setNewPriority(e.target.value)}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                      >
+                        <option value="low">Baja</option>
+                        <option value="normal">Normal</option>
+                        <option value="high">Alta</option>
+                        <option value="urgent">Urgente</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Nombre del Cliente
+                      </label>
+                      <input
+                        required
+                        type="text"
+                        value={newRequesterName}
+                        onChange={(e) => setNewRequesterName(e.target.value)}
+                        placeholder="Ej. Lucía Fernández"
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Email del Cliente
+                      </label>
+                      <input
+                        required
+                        type="email"
+                        value={newRequesterEmail}
+                        onChange={(e) => setNewRequesterEmail(e.target.value)}
+                        placeholder="lucia@cliente.es"
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Asunto de la incidencia
+                    </label>
+                    <input
+                      required
+                      type="text"
+                      value={newSubject}
+                      onChange={(e) => setNewSubject(e.target.value)}
+                      placeholder="Ej. Cobro duplicado con DNI 48291044L..."
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Mensaje del cliente
+                    </label>
+                    <textarea
+                      required
+                      rows={3}
+                      value={newDescription}
+                      onChange={(e) => setNewDescription(e.target.value)}
+                      placeholder="Describe el problema del cliente (incluye un DNI, IBAN o móvil para probar el Guardrail GDPR en vivo)..."
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowNewModal(false)}
+                      className="px-4 py-2 rounded-lg border border-slate-300 text-xs font-semibold text-slate-600 cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded-lg bg-[#03363D] text-white text-xs font-semibold hover:bg-[#054a54] cursor-pointer"
+                    >
+                      Crear Ticket
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>

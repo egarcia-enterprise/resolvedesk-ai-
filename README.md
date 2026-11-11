@@ -1,9 +1,12 @@
 # ResolveDesk AI — Multi-Tenant Agentic Operations & Process Orchestration Platform
 
-[![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)](https://www.typescriptlang.org/)
-[![SQLite](https://img.shields.io/badge/Database-Multi--Tenant%20SQLite-003B57)](https://www.sqlite.org/)
-[![Architecture](https://img.shields.io/badge/Architecture-Agentic%20AI%20%2B%20Human--in--the--Loop-0176D3)](https://github.com/egarcia-enterprise/resolvedesk-ai)
+[![Live Demo](https://img.shields.io/badge/Live%20Interactive%20Demo-Launch%20Workspace-10B981?style=for-the-badge)](https://egarcia-enterprise.github.io/resolvedesk-ai-/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge)](https://www.typescriptlang.org/)
+[![SQLite](https://img.shields.io/badge/Database-Multi--Tenant%20SQLite-003B57?style=for-the-badge)](https://www.sqlite.org/)
+
+> ### 🌐 **[Click here to open the Live Interactive Demo in your browser →](https://egarcia-enterprise.github.io/resolvedesk-ai-/)**
+> *Test Multi-Tenant switching (`Moda Ibérica Retail` vs `PayFlow Digital`), GDPR PII Masking, AI Triage, 1-Click Agent Copilot, and the Live SQL Query Inspector without installing anything locally.*
 
 **ResolveDesk AI** is a full-stack B2B SaaS prototype designed to demonstrate how **Agentic AI, intelligent process orchestration, and human-in-the-loop expertise** transform high-volume enterprise operations across Retail, FinTech, and B2B Services.
 
