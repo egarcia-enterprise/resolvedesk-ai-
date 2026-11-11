@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ResolveDesk AI — Multi-Tenant Agentic Operations & Process Orchestration Platform
 
-## Getting Started
+[![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)](https://www.typescriptlang.org/)
+[![SQLite](https://img.shields.io/badge/Database-Multi--Tenant%20SQLite-003B57)](https://www.sqlite.org/)
+[![Architecture](https://img.shields.io/badge/Architecture-Agentic%20AI%20%2B%20Human--in--the--Loop-0176D3)](https://github.com/egarcia-enterprise/resolvedesk-ai)
 
-First, run the development server:
+**ResolveDesk AI** is a full-stack B2B SaaS prototype designed to demonstrate how **Agentic AI, intelligent process orchestration, and human-in-the-loop expertise** transform high-volume enterprise operations across Retail, FinTech, and B2B Services.
+
+Built by **Enrique García** ([LinkedIn](https://linkedin.com/in/enriquegarciacollado) · [Enterprise Value Hub](https://egarcia-enterprise.github.io/egarcia-enterprise/)).
+
+---
+
+## 🚀 Key Enterprise Capabilities
+
+1. **Multi-Tenant Data Isolation & Consumption Metering (`organization_id`)**
+   * Strict tenant-level SQL isolation across organizations (*Retail Omnichannel*, *FinTech Payments*, *B2B Cloud*).
+   * Tracks seat limits, MRR (`mrr_eur`), and **consumption-based AI resolution credits** (`ai_resolutions_used / ai_resolutions_limit`) across `starter` and `enterprise` tiers.
+
+2. **Autonomous AI Triage & Trust Layer (PII Redaction)**
+   * **Automated PII Redaction (`redacted_description`):** Masks sensitive customer data (credit cards, IBANs, national IDs, emails) before LLM processing.
+   * **Intent & Sentiment Classification:** Automatically categorizes incoming operational requests and assigns SLA priority (`Urgent 1h`, `High 4h`, `Normal 24h`).
+   * **Agentic Resolution Drafting (`ai_suggested_reply`):** Generates context-aware resolutions ready for one-click human approval or autonomous execution.
+
+3. **Omnichannel Ingestion & Human-in-the-Loop Workspace (`AgentWorkspace.tsx`)**
+   * Unified operational queue across **WhatsApp**, **Email**, **Web Center**, and **Webhook API**.
+   * Real-time **REST API & SQL Query Inspector (`DebugLog`)** allowing technical buyers (CTOs/Solution Architects) to inspect the underlying multi-tenant queries and API payloads live.
+
+---
+
+## 🛠️ Tech Stack
+
+* **Frontend:** Next.js (App Router), React, TypeScript, Tailwind CSS
+* **Backend:** Next.js Route Handlers (`/api/organizations`, `/api/tickets`), RESTful JSON APIs
+* **Database:** Relational SQL (`better-sqlite3`) with multi-tenant schema (`organizations`, `users`, `tickets`)
+
+---
+
+## 💻 Running Locally
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Open [http://localhost:3000](http://localhost:3000) to launch the **ResolveDesk AI Agentic Workspace**.
