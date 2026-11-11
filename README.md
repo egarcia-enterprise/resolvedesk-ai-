@@ -35,15 +35,17 @@ Built by **Enrique García** ([LinkedIn](https://linkedin.com/in/enriquegarciaco
 
 * **Frontend:** Next.js (App Router), React, TypeScript, Tailwind CSS
 * **Backend:** Next.js Route Handlers (`/api/organizations`, `/api/tickets`), RESTful JSON APIs
-* **Database:** Relational SQL (`better-sqlite3`) with multi-tenant schema (`organizations`, `users`, `tickets`)
+* **Database:** Relational SQL (`node:sqlite`) with multi-tenant schema (`organizations`, `users`, `tickets`)
 
 ---
 
-## 💻 Running Locally
+## 🌐 Live Interactive Demo
+
+👉 **Launch in Browser (No installation required):** [**https://egarcia-enterprise.github.io/resolvedesk-ai-/**](https://egarcia-enterprise.github.io/resolvedesk-ai-/)
+
+### 💻 Local Development (Next.js + SQLite Backend)
 
 ```bash
 npm install
 npm run dev
 ```
-
-Open [http://localhost:3000](http://localhost:3000) to launch the **ResolveDesk AI Agentic Workspace**.
