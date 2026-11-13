@@ -1,23 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSessionFromRequest } from "@/lib/auth";
 import { createTicket, getOrganizationById, listTicketsByOrg } from "@/lib/db";
+import { processTicketWithAiGuardrails } from "@/lib/triage-service";
 import type { TicketChannel, TicketPriority } from "@/lib/types";
 
 /**
- * GET /api/tickets?orgId=org_retail&status=all
- * Consulta Multi-Tenant: exige SIEMPRE orgId para aislar los datos de cada empresa cliente.
+ * GET /api/tickets?status=all
+ * SEGURIDAD MULTI-TENANT REAL: el servidor extrae `organizationId` del token firmado
+ * en la cookie HttpOnly `rd_session` (nunca confía ciegamente en parámetros de la URL).
  */
 export async function GET(request: NextRequest) {
-  const orgId = request.nextUrl.searchParams.get("orgId");
-  const status = request.nextUrl.searchParams.get("status") ?? "all";
-
-  if (!orgId) {
+  const session = getSessionFromRequest(request);
+  if (!session) {
     return NextResponse.json(
-      { error: "Falta el parámetro obligatorio orgId (aislamiento Multi-Tenant)." },
-      { status: 400 }
+      { error: "Sesión no iniciada (HTTP 401). Accede mediante el portal SSO." },
+      { status: 401 }
     );
   }
 
-  const organization = getOrganizationById(orgId);
+  const orgId = session.organizationId;
+  const status = request.nextUrl.searchParams.get("status") ?? "all";
+
+  const organization = getOrganizationById(orgId, false);
   if (!organization) {
     return NextResponse.json(
       { error: "Organización no encontrada." },
@@ -35,7 +39,7 @@ export async function GET(request: NextRequest) {
     organization,
     tickets,
     _debug: {
-      endpoint: `GET /api/tickets?orgId=${orgId}&status=${status}`,
+      endpoint: `GET /api/tickets (Cookie Session: ${orgId})`,
       sql: sqlFilter,
     },
   });
@@ -43,30 +47,40 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/tickets
- * Crea un nuevo ticket entrante (desde formulario web, WhatsApp, email o API externa).
+ * Crea un ticket dentro del Tenant autenticado en la sesión y opcionalmente ejecuta Auto-Triaje IA.
  */
 export async function POST(request: NextRequest) {
+  const session = getSessionFromRequest(request);
+  if (!session) {
+    return NextResponse.json(
+      { error: "Sesión no iniciada (HTTP 401)." },
+      { status: 401 }
+    );
+  }
+
+  const organization_id = session.organizationId;
   const body = await request.json();
   const {
-    organization_id,
     channel = "web",
     requester_name,
     requester_email,
     subject,
     description,
     priority = "normal",
+    auto_triage = true,
+    gemini_api_key,
   } = body as {
-    organization_id?: string;
     channel?: TicketChannel;
     requester_name?: string;
     requester_email?: string;
     subject?: string;
     description?: string;
     priority?: TicketPriority;
+    auto_triage?: boolean;
+    gemini_api_key?: string;
   };
 
   if (
-    !organization_id ||
     !requester_name?.trim() ||
     !requester_email?.trim() ||
     !subject?.trim() ||
@@ -78,15 +92,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const org = getOrganizationById(organization_id);
-  if (!org) {
-    return NextResponse.json(
-      { error: "Organización inválida." },
-      { status: 404 }
-    );
-  }
-
-  const ticket = createTicket({
+  let ticket = createTicket({
     organization_id,
     channel,
     requester_name: requester_name.trim(),
@@ -96,12 +102,36 @@ export async function POST(request: NextRequest) {
     priority,
   });
 
+  let updatedOrg = getOrganizationById(organization_id, false)!;
+  let triageWarning: string | null = null;
+
+  if (auto_triage) {
+    try {
+      const triaged = await processTicketWithAiGuardrails(
+        organization_id,
+        ticket.id,
+        gemini_api_key
+      );
+      ticket = triaged.ticket;
+      updatedOrg = triaged.organization;
+    } catch (err) {
+      triageWarning =
+        err instanceof Error
+          ? err.message
+          : "No se pudo completar el auto-triaje IA.";
+    }
+  }
+
   return NextResponse.json(
     {
       ticket,
+      organization: updatedOrg,
+      triageWarning,
       _debug: {
         endpoint: "POST /api/tickets",
-        sql: `INSERT INTO tickets (id, organization_id, ticket_number, channel, subject, status, priority) VALUES ('${ticket.id}', '${organization_id}', '${ticket.ticket_number}', '${channel}', '...', 'new', '${priority}');`,
+        sql: `INSERT INTO tickets (id, organization_id, ticket_number, channel, status, intent) VALUES ('${ticket.id}', '${organization_id}', '${ticket.ticket_number}', '${channel}', 'new', ${
+          ticket.intent ? `'${ticket.intent}'` : "NULL"
+        });`,
       },
     },
     { status: 201 }

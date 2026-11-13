@@ -1,6 +1,5 @@
 /**
  * Modelos de datos principales del SaaS (equivalente a las columnas de nuestras tablas SQL).
- * En TypeScript definimos la "forma" exacta de los datos para evitar errores entre Backend y Frontend.
  */
 
 export type PlanTier = "starter" | "enterprise";
@@ -19,6 +18,7 @@ export interface Organization {
   ai_resolutions_used: number;
   ai_resolutions_limit: number;
   mrr_eur: number;
+  api_key?: string;
   created_at: string;
 }
 
@@ -30,9 +30,24 @@ export interface User {
   role: UserRole;
 }
 
+export interface AuthSession {
+  userId: string;
+  organizationId: string;
+  role: UserRole;
+  userName: string;
+  userEmail: string;
+  exp: number;
+}
+
+export interface PiiDetection {
+  type: string;
+  placeholder: string;
+  count: number;
+}
+
 export interface Ticket {
   id: string;
-  organization_id: string; // Clave de aislamiento Multi-Tenant
+  organization_id: string;
   ticket_number: string;
   channel: TicketChannel;
   requester_name: string;
@@ -44,8 +59,33 @@ export interface Ticket {
   priority: TicketPriority;
   intent: string | null;
   sentiment: string | null;
+  ai_summary: string | null;
   ai_suggested_reply: string | null;
+  ai_engine: string | null;
+  pii_stats: string | null;
   agent_reply: string | null;
+  external_event_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface WebhookLog {
+  id: string;
+  organization_id: string;
+  source_system: string;
+  external_event_id: string | null;
+  status_code: number;
+  outcome: string;
+  ticket_number: string | null;
+  created_at: string;
+}
+
+export interface BillingEvent {
+  id: string;
+  organization_id: string;
+  stripe_event_id: string;
+  event_type: string;
+  amount_eur: number;
+  description: string;
+  created_at: string;
 }
