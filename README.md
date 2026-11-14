@@ -1,65 +1,97 @@
-# ResolveDesk AI — Multi-Tenant Agentic CX, Webhook Orchestration & Usage Billing Platform
+# ResolveDesk AI — Multi-Tenant Enterprise CX & Copilot SaaS
 
-[![Live Demo](https://img.shields.io/badge/Live%20Interactive%20Demo-Launch%20Workspace-10B981?style=for-the-badge)](https://egarcia-enterprise.github.io/resolvedesk-ai-/)
-[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge)](https://www.typescriptlang.org/)
-[![SQLite](https://img.shields.io/badge/Database-Multi--Tenant%20SQLite-003B57?style=for-the-badge)](https://www.sqlite.org/)
+**ResolveDesk AI** is a full-stack, cloud-native **B2B Customer Experience (CX) & AI Triage SaaS Proof-of-Concept**, architected after **Zendesk Suite Enterprise + AI Copilot**.
 
-> ### 🌐 **[Click here to open the Live Interactive Demo in your browser →](https://egarcia-enterprise.github.io/resolvedesk-ai-/)**
-> *Test Multi-Tenant switching (`Moda Ibérica Retail` vs `PayFlow Digital`), Enterprise SSO & RBAC (`ADMIN` vs `AGENT`), GDPR PII Guardrail, Gemini AI Triage, Webhook Idempotency (`SAP ERP` / `Payment Gateway`), Stripe Usage Billing, and the MEDDPICC CFO ROI Calculator directly in your browser.*
-
-**ResolveDesk AI** is a full-stack B2B SaaS reference architecture designed to demonstrate how **Agentic AI, cryptographic multi-tenant governance, enterprise webhooks, and usage-based billing** transform high-volume operations across Retail, FinTech, and B2B Services.
-
-Built by **Enrique García** ([LinkedIn](https://linkedin.com/in/enriquegarciacollado) · [Enterprise Value Hub](https://egarcia-enterprise.github.io/egarcia-enterprise/)).
+Built to demonstrate end-to-end **Enterprise SaaS Architecture, Cloud Security, AI Governance (GDPR), Omnichannel APIs, and Hybrid Usage-Based Monetization**—bridging technical solution engineering with C-level ROI business cases (CIO, CISO, CFO, and VP of CX).
 
 ---
 
-## 🏗️ Enterprise Architecture & Core Modules
+## Architectural Highlights
 
-### 1. Multi-Tenant SQLite Isolation (`src/lib/db.ts`)
-* Strict tenant-level SQL isolation (`WHERE organization_id = ?`) across organizations (*Moda Ibérica Retail* on Enterprise Plan vs. *PayFlow Digital* on Starter Plan).
-* Relational schema covering `organizations`, `users`, `tickets`, `webhook_logs`, and `billing_events`.
+```mermaid
+flowchart LR
+    ERP["External Systems (SAP / Shopify / TPV)"] -->|"Bearer API Key + Idempotency"| WH["POST /api/webhooks/inbound"]
+    User["Enterprise User (SSO Browser)"] -->|"HttpOnly HMAC Session + RBAC"| UI["Next.js 16 + TypeScript Workspace"]
+    UI --> API["Backend REST API Layer"]
+    WH --> PII["GDPR / PII Redaction Guardrail"]
+    API --> PII
+    PII -->|"Sanitized Prompt Only"| AI["AI Adapter: Gemini 2.5 Flash + Local Fallback"]
+    API -->|"Strict tenant_id Isolation"| DB[("SQL Multi-Tenant Store")]
+    Stripe["Stripe Billing (Test Mode)"] -->|"Stripe-Signature HMAC"| BillWH["POST /api/webhooks/stripe"]
+    BillWH --> DB
+```
 
-### 2. Enterprise SSO & Role-Based Access Control (`SsoLoginPortal.tsx`, `src/lib/auth.ts`)
-* Signed `HttpOnly` session cookies (`HMAC-SHA256`) embedding `organizationId` and `role` (`admin` vs `agent`).
-* Server-side RBAC enforcement: `agent` users can triage and resolve tickets, while sensitive operations (API key rotation, Stripe plan upgrades) enforce `admin` privileges (`HTTP 403 Forbidden` on unauthorized attempts).
+### 1. Cryptographic Multi-Tenancy & Role-Based Access Control (RBAC)
+* **Zero URL-Parameter Trust:** Tenant isolation (`organization_id`) and role permissions (`ADMIN` vs `AGENT`) are cryptographically signed with **HMAC-SHA256** inside an `HttpOnly` session cookie ([`src/lib/auth.ts`](src/lib/auth.ts)) using constant-time signature verification (`crypto.timingSafeEqual`).
+* **Database-Level Isolation:** Every SQL query and mutation enforces composite filtering (`WHERE id = ? AND organization_id = ?`) to prevent cross-tenant leakage (IDOR), backed by composite tenant indexes.
+* **Server-Enforced RBAC (`HTTP 403 Forbidden`):** Support `AGENT` seats can triage and resolve tickets, while sensitive operations (API key viewing/rotation, ticket deletion, and Stripe subscription upgrades) are strictly restricted to `ADMIN` roles.
 
-### 3. GDPR/PII Guardrail & Hybrid Gemini AI Triage (`pii-guardrail.ts`, `ai-triage.ts`)
-* **Zero-Leakage PII Redaction:** Regex + entity guardrail automatically masks emails, phone numbers, IBANs, credit cards, and Spanish DNI/NIE identifiers before any payload reaches the LLM.
-* **Autonomous Triage Engine:** Supports live **Google Gemini (`gemini-2.5-flash`)** structured JSON output with deterministic fallback—classifying Intent, Sentiment/Churn Risk, SLA Priority (`Urgent 1h`, `High 4h`, `Normal 24h`), Executive Summary, and 1-Click Agent Copilot Reply.
+### 2. European AI Governance — GDPR / PII Redaction Guardrail
+* Addresses the #1 European CISO/DPO objection to enterprise AI adoption: **sensitive customer data never leaves the perimeter unmasked**.
+* Before invoking any external LLM, [`src/lib/pii-guardrail.ts`](src/lib/pii-guardrail.ts) intercepts and masks **IBANs, payment card digits, national IDs (DNI/NIE/NIF), emails, and phone numbers**, storing an auditable PII interception report per ticket and exposing a live **Agent View vs. Sanitized LLM Prompt** toggle.
 
-### 4. Enterprise Webhook Integration Hub & Idempotency (`WebhookIntegrationHub.tsx`, `/api/webhooks/inbound`)
-* Allows external enterprise systems (**SAP ERP / OMS**, **Stripe / Adyen Payment Gateways**) to push operational incidents via `X-Api-Key` authentication.
-* **Idempotency Protection (`external_event_id`):** Prevents duplicate ticket creation during network retries (`HTTP 200 Idempotent Skip`) and logs all inbound events in `webhook_logs`.
+### 3. Resilient AI Engine (`Google Gemini 2.5 Flash` + Graceful Local Fallback)
+* Implements the **Cloud Provider Adapter + Circuit-Breaker Fallback** pattern ([`src/lib/ai-triage.ts`](src/lib/ai-triage.ts)).
+* Dynamically routes structured JSON triage requests (*Intent*, *Customer Sentiment / Churn Risk*, *SLA Priority*, *Executive Summary*, and *Agent Copilot Reply Draft*) to **Google Gemini 2.5 Flash**, while seamlessly failing over to a deterministic local NLP engine if no API key is configured or during upstream cloud outages.
 
-### 5. Usage-Based Billing, Stripe Webhooks & MEDDPICC CFO Calculator (`BillingAndRoiDashboard.tsx`, `stripe-billing.ts`)
-* Tracks consumption-based **AI Resolution Credits** (`ai_resolutions_used / ai_resolutions_limit`) and blocks AI triage with `HTTP 402 Payment Required` when a Starter tenant exhausts its quota.
-* Simulates signed **Stripe Checkout Webhooks (`HMAC-SHA256` `Stripe-Signature`)** for instant plan upgrades (`Starter` → `Enterprise`) and credit top-ups.
-* Includes an interactive **MEDDPICC CFO Business Case Calculator** quantifying annual net savings, FTE capacity freed, and payback period.
+### 4. Machine-to-Machine Omnichannel Webhooks & Idempotency
+* [`POST /api/webhooks/inbound`](src/app/api/webhooks/inbound/route.ts) authenticates external enterprise systems (SAP S/4HANA, Shopify, payment gateways) via per-tenant `Bearer` API keys (`zd_live_...`).
+* **Idempotent Event Processing:** Deduplicates retries via `external_event_id` (`HTTP 200 IDEMPOTENT_SKIP`), guaranteeing zero duplicate tickets and zero double-billing of AI resolutions during network retries.
+
+### 5. Hybrid SaaS Monetization (Stripe Billing + MEDDPICC ROI Modeler)
+* Models modern CX SaaS packaging: **Recurring Seat Licenses (MRR/ARR)** + **Outcome/Usage Quotas (*Automated Resolutions*)**.
+* Enforces `HTTP 402 Payment Required` when a Starter tenant exhausts its monthly AI resolution allowance, unlocking capacity asynchronously via HMAC-verified **Stripe Webhooks** ([`POST /api/webhooks/stripe`](src/app/api/webhooks/stripe/route.ts)).
+* Includes a live **CFO / VP CX Value Calculator** modeling net annual savings, Average Handle Time (*AHT*) reduction, First Reply Time (*FRT*), and payback period.
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
-* **Frontend:** Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS
-* **Backend APIs:**
-  * `POST /api/auth/login` & `POST /api/auth/logout` (HMAC-SHA256 Session Cookies)
-  * `GET / POST /api/tickets` & `PATCH /api/tickets/[id]` (Multi-Tenant Ticket CRUD)
-  * `POST /api/tickets/[id]/triage` (PII Redaction + Gemini 2.5 Flash Triage + Quota Metering)
-  * `POST /api/webhooks/inbound` & `GET / POST /api/admin/api-keys` (API Key Auth + Idempotency)
-  * `GET / POST /api/billing` (Stripe Signature Verification + Plan Upgrades)
-* **Database:** Native Node.js SQLite (`node:sqlite`) with zero external DB server dependencies.
+* **Application & API:** Next.js 16 (App Router, Standalone Cloud Output), React 19, TypeScript 5, Tailwind CSS 4
+* **Database:** Native Node.js SQLite (`node:sqlite` WAL mode) — zero external daemon required locally, portable to Cloud SQL / PostgreSQL
+* **Security & Billing Protocols:** Node `crypto` HMAC-SHA256 (`HttpOnly` SSO sessions & `Stripe-Signature` verification)
+* **AI Layer:** Google Gemini 2.5 Flash REST Structured Outputs + Local High-Availability NLP Fallback
+* **Cloud & DevOps:** Multi-stage non-root `Dockerfile` (port `8080` for **Google Cloud Run**), `docker-compose.yml`, and GitHub Actions CI (`.github/workflows/ci.yml`)
 
 ---
 
-## 🌐 Live Interactive Demo & Local Setup
+## Quickstart (Local Development)
 
-👉 **Launch in Browser (No installation required):** [**https://egarcia-enterprise.github.io/resolvedesk-ai-/**](https://egarcia-enterprise.github.io/resolvedesk-ai-/)
-
-### 💻 Run Locally (Full Next.js + SQLite Backend)
+Requires **Node.js v22.5+ / v24+** (uses built-in `node:sqlite`).
 
 ```bash
+# 1. Install dependencies
 npm install
+
+# 2. Optional: configure secrets or Gemini API Key
+cp .env.example .env.local
+
+# 3. Start local server
 npm run dev
-# Open http://localhost:3000
 ```
+
+Open **http://localhost:3000** and sign in with 1 click through the **Enterprise SSO Portal** as either:
+* **Moda Ibérica Retail (`ENTERPRISE` · €4,800 MRR):** Test GDPR PII redaction, Agent Copilot, and SAP ERP webhooks.
+* **PayFlow Digital (`STARTER` · €190 MRR):** Experience `HTTP 402` AI quota exhaustion, RBAC `HTTP 403` enforcement, and live Stripe Checkout upgrades.
+
+---
+
+## Deploying to Google Cloud Run
+
+This repository is pre-configured with `output: "standalone"` and a multi-stage, non-root [`Dockerfile`](Dockerfile) listening on `$PORT` (`8080`):
+
+```bash
+# Build and deploy directly to Google Cloud Run (Europe-Southwest1 / Madrid)
+gcloud run deploy resolvedesk-ai \
+  --source . \
+  --region europe-southwest1 \
+  --allow-unauthenticated \
+  --set-env-vars="NODE_ENV=production"
+```
+
+---
+
+## Author
+
+**Enrique García** — Enterprise Account Executive  
+[LinkedIn](https://linkedin.com/in/enriquegarciacollado) • [GitHub Portfolio](https://github.com/egarcia-enterprise)

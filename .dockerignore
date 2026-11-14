@@ -1,0 +1,8 @@
+node_modules
+.next
+.git
+.gitignore
+data/*.sqlite*
+npm-debug.log*
+.DS_Store
+.env*.local

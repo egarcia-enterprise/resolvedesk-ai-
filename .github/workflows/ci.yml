@@ -1,0 +1,29 @@
+name: Cloud SaaS CI — Typecheck & Production Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24 (Native SQLite Runtime)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies cleanly
+        run: npm ci
+
+      - name: Run strict TypeScript validation
+        run: npx tsc --noEmit
+
+      - name: Compile Next.js standalone Cloud Run bundle
+        run: npm run build
